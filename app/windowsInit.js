@@ -63,18 +63,7 @@ const getBraveCoreInstallerPath = () => {
     os.arch() === 'x32' ? 'BraveBrowserSetup32.exe' : 'BraveBrowserSetup64.exe')
 }
 
-// in built mode console.log output is not emitted to the terminal
-// in prod mode we pipe to a file
-var debug = function (contents) {
-  const fs = require('fs')
-  const os = require('os')
-  const updateLogPath = path.join(app.getPath('userData'), 'bscLog.log')
-  fs.appendFile(updateLogPath, new Date().toISOString() + ' - ' + contents + os.EOL, (err) => {
-    if (err) console.error(err)
-  })
-}
-
-function InstallBraveCore () {
+function GetBraveCoreInstallPath () {
   const fs = require('fs')
 
   // expected install paths
@@ -91,8 +80,16 @@ function InstallBraveCore () {
       return process.env[variableToResolve]
     })
     if (fs.existsSync(resolvedPath)) {
-      return false
+      return resolvedPath
     }
+  }
+
+  return false
+}
+
+function InstallBraveCore () {
+  if (GetBraveCoreInstallPath()) {
+    return false
   }
 
   // brave-core is not installed; go ahead with silent install
@@ -100,7 +97,7 @@ function InstallBraveCore () {
   try {
     execSync(cmd)
   } catch (e) {
-    debug('Error thrown when installing brave-core: ' + e.toString())
+    console.log('Error thrown when installing brave-core: ' + e.toString())
     return false
   }
 
@@ -125,8 +122,6 @@ if (process.platform === 'win32') {
     }
   }
 
-  debug('BSC]] brave.exe was launched with argv=' + process.argv.toString())
-
   // first-run after install / update
   if (isSquirrelInstall || isSquirrelUpdate) {
     // The manifest file is used to customize the look of the Start menu tile.
@@ -141,20 +136,14 @@ if (process.platform === 'win32') {
     spawnSync(getBraveDefaultsBinPath(), ['-uninstall'])
   }
 
-  // This actually creates the shortcut
+  // Events like `--squirrel-install` and `--squirrel-updated`
+  // are fired by Update.exe DURING the install/upgrade. Since
+  // we don't intend to actually launch the executable, we need
+  // to exit. The user will then pick "Relaunch" at their leisure
+  //
+  // This logic also creates the shortcuts (desktop, etc)
   if (shouldQuit(channel)) {
     process.exit(0)
-  }
-
-  // silent install brave-core
-  if (isSquirrelFirstRun || isSquirrelInstall || isSquirrelUpdate) {
-    if (InstallBraveCore()) {
-      // relaunch and append argument expected in:
-      // https://github.com/brave/brave-browser/issues/1545
-      app.relaunch({args: ['--relaunch', '--upgrade-from-muon']})
-      app.exit()
-      return
-    }
   }
 
   const userDataDirSwitch = '--user-data-dir-name=brave-' + channel
@@ -168,6 +157,19 @@ if (process.platform === 'win32') {
       app.relaunch({args: process.argv.slice(1).concat([userDataDirSwitch, '--relaunch'])})
     }
     app.exit()
+    return
+  }
+
+  // silent install brave-core
+  // TODO: store install attempt in appState https://github.com/brave/brave-browser/issues/1911
+  if (true) {
+    if (InstallBraveCore()) {
+      // relaunch and append argument expected in:
+      // https://github.com/brave/brave-browser/issues/1545
+      const installedPath = GetBraveCoreInstallPath()
+      execSync(`"${installedPath}/brave.exe" --upgrade-from-muon`)
+      app.exit()
+    }
   }
 }
 
