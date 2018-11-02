@@ -92,10 +92,20 @@ function InstallBraveCore () {
     return false
   }
 
-  // brave-core is not installed; go ahead with silent install
-  const cmd = getBraveCoreInstallerPath() + ' /silent /install'
+  // forcefully create the legacy shortcut
+  const updateExe = path.join(getBraveBinPath(), '..', 'Update.exe')
+  const shortcutTarget = path.basename(process.execPath)
+  const shortcutCmd = `${updateExe} --createShortcut=${shortcutTarget} --shortcut-locations=DuplicateDesktop --process-start-args=--launch-muon`
   try {
-    execSync(cmd)
+    execSync(shortcutCmd)
+  } catch (e) {
+    console.log('Error thrown when creating Muon shortcut: ' + e.toString())
+  }
+
+  // brave-core is not installed; go ahead with silent install
+  const installCmd = getBraveCoreInstallerPath() + ' /silent /install'
+  try {
+    execSync(installCmd)
   } catch (e) {
     console.log('Error thrown when installing brave-core: ' + e.toString())
     return false
