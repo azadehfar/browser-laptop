@@ -208,10 +208,11 @@ const launchBraveCore = (state) => {
   try {
     if (platformUtil.isDarwin()) {
       execSync(`open -a "${installedPath}"`)
+      console.log('opened brave-core instance (at "' + installedPath + '")')
     } else if (platformUtil.isWindows()) {
-      // TODO(bsclifton)
+      execSync(`"${installedPath}\\brave.exe"`)
+      console.log('opened brave-core instance (at "' + installedPath + '\\brave.exe")')
     }
-    console.log('opened brave-core instance (at "' + installedPath + '")')
     app.exit()
   } catch (e) {
     console.log('ERROR: tried to launch brave-core (at "' + installedPath +

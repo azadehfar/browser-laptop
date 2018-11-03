@@ -52,7 +52,7 @@ process.on('warning', warning => console.warn(warning.stack))
 let initState
 
 if (process.platform === 'win32') {
-  require('./windowsInit')
+  initState = require('./windowsInit')()
 } else if (process.platform === 'linux') {
   require('./linuxInit')
 } else if (process.platform === 'darwin') {

@@ -10,6 +10,7 @@ if (process.platform === 'darwin') {
   const app = electron.app
   const os = require('os')
   const appName = 'Brave Browser.app'
+  const homedir = os.homedir()
 
   const getBraveBinPath = () => {
     const appPath = app.getPath('exe')
@@ -30,13 +31,13 @@ if (process.platform === 'darwin') {
     return path.join(getBraveBinPath(), 'Contents', 'Resources', 'Brave-Browser.pkg')
   }
 
-  const GetBraveCoreInstallPath = () => {
+  const getBraveCoreInstallPath = () => {
     const fs = require('fs')
-    const homedir = os.homedir()
     const braveCoreInstallLocations = [
       `${homedir}/Applications/${appName}/`,
       `/Applications/${appName}/`
     ]
+
     // check for existing installations
     for (var i = 0; i < braveCoreInstallLocations.length; i++) {
       if (fs.existsSync(braveCoreInstallLocations[i])) {
@@ -48,14 +49,11 @@ if (process.platform === 'darwin') {
     return false
   }
 
-  const InstallBraveCore = () => {
-    const homedir = os.homedir()
-
-    console.log('InstallBraveCore\n----------------')
-
+  const installBraveCore = () => {
     // get path to the bundled brave-core binary
     const installerPath = getBraveCoreInstallerPath()
     if (!installerPath) {
+      console.log('brave-core installer not found')
       return false
     }
 
@@ -89,6 +87,8 @@ if (process.platform === 'darwin') {
         }
       })
 
+      // relaunch and append argument expected in:
+      // https://github.com/brave/brave-browser/issues/1545
       console.log('Launching brave-core')
       execSync(`open -a "${installedPath}/${appName}/" --args --upgrade-from-muon`)
     } catch (e) {
@@ -105,11 +105,11 @@ if (process.platform === 'darwin') {
 
   // TODO: pass in state that specifies whether or not install was attempted
   module.exports = function () {
-    // Store installed brave-core version
-    const braveCoreInstallPath = GetBraveCoreInstallPath()
-    let braveCoreVersion
+    // If brave-core is installed, find the path and version
+    const braveCoreInstallPath = getBraveCoreInstallPath()
     if (braveCoreInstallPath) {
       const getVersionCmd = `defaults read "${braveCoreInstallPath}/Contents/Info" CFBundleShortVersionString`
+      let braveCoreVersion
       try {
         // format will be like `71.0.57.4`
         braveCoreVersion = execSync(getVersionCmd).toString().trim()
@@ -123,15 +123,10 @@ if (process.platform === 'darwin') {
       return {braveCoreInstallPath, braveCoreVersion}
     }
 
+    // If brave-core is NOT installed, attempt to install it
     // TODO: store install attempt in appState https://github.com/brave/brave-browser/issues/1911
-    if (InstallBraveCore()) {
-      console.log('brave-core installed\n----------------')
-      // relaunch and append argument expected in:
-      // https://github.com/brave/brave-browser/issues/1545
+    if (installBraveCore()) {
       app.exit()
-    } else {
-      // in this case, browser-laptop will launch as usual
-      console.log('brave-core not installed\n----------------')
     }
   }
 }
